@@ -1,0 +1,49 @@
+import cv2
+import mediapipe as mp
+
+# Caminho do vídeo original
+input_path = "VID_20250815_185154.mp4"
+output_path = "video_desfocado.mp4"
+
+# Inicializa o MediaPipe Selfie Segmentation
+mp_selfie_segmentation = mp.solutions.selfie_segmentation
+segmentation = mp_selfie_segmentation.SelfieSegmentation(model_selection=1)
+
+# Abre o vídeo
+cap = cv2.VideoCapture(input_path)
+fps = cap.get(cv2.CAP_PROP_FPS)
+width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+# Configura saída do vídeo
+fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+
+while cap.isOpened():
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    # Converte para RGB (necessário pro MediaPipe)
+    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+    # Segmentação
+    results = segmentation.process(rgb)
+    mask = results.segmentation_mask
+
+    # Cria fundo desfocado
+    blurred = cv2.GaussianBlur(frame, (55, 55), 0)
+
+    # Combina pessoas (foreground) com fundo desfocado
+    condition = mask > 0.5  # True = pessoa
+    output_frame = frame.copy()
+    output_frame[~condition] = blurred[~condition]
+
+    # Escreve no vídeo de saída
+    out.write(output_frame)
+
+# Libera recursos
+cap.release()
+out.release()
+cv2.destroyAllWindows()
+print("✅ Vídeo processado salvo em:", output_path)
